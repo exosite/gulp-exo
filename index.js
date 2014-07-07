@@ -58,8 +58,7 @@ function upload(opt) {
 }
 
 function uploadResult(err, response, body) {
-    // console.log(response.statusCode)
-    // console.log(response.headers)
+    if (err) return console.error(err);
 
     function cb(body) {
         if (response.statusCode == 200 && body.code) {
