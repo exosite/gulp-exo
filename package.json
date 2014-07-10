@@ -14,6 +14,13 @@
         "Exosite",
         "Gulp"
     ],
-    "author": "Willy Tseng",
-    "license": "Exosite"
+    "author": {
+        "name": "Willy Tseng"
+    },
+    "license": "Exosite",
+    "readme": "ERROR: No README data found!",
+    "_id": "gulp-exo@1.0.3",
+    "_shasum": "0b56d38b48b7b388a6192285cfbbf0db3bbf693a",
+    "_resolved": "git+ssh://git@i.exosite.com:willytseng/gulp-exo.git#456036e33961cf0a512cef872275c579d5da31e4",
+    "_from": "git+ssh://git@i.exosite.com:willytseng/gulp-exo.git"
 }
