@@ -4,7 +4,7 @@
 var fs = require('fs'),
     util = require('util'),
     path = require('path'),
-    zlib = require('zlib');
+    zlib = require('zlib')
 
 // 3rd party
 var extend = require('extend'),
@@ -13,12 +13,12 @@ var extend = require('extend'),
     reduce = require('stream-reduce'),
     gutil = require('gulp-util'),
     // progress = require('request-progress'),
-    debug = require('debug')('widget-uploader');
+    debug = require('debug')('widget-uploader')
 
 function upload(opt) {
 
-    var url = 'https://' + opt.host + '/api/portals/v1/widget-scripts/' + opt.widgetId;
-    console.log('uploading to: ', url);
+    var url = 'https://' + opt.host + '/api/portals/v1/widget-scripts/' + opt.widgetId
+    console.log('uploading to: ', url)
 
     var _opt = {
         encoding: null,
@@ -30,15 +30,15 @@ function upload(opt) {
         auth: opt.auth,
         strictSSL: false,
         followRedirect: true
-    };
+    }
 
-    var input = reduce(joinResponse, '');
+    var input = reduce(joinResponse, '')
 
     var output = input.pipe(reduce(wrapAsJSON, '{"code":null}'))
         .pipe(request.put(url, _opt, uploadResult)).on('error', console.error)
         .pipe(reduce(joinResponse, '')) //.on('data', console.log)
 
-    return es.duplex(input, output);
+    return es.duplex(input, output)
 }
 
 function uploadResult(err, response, body) {
@@ -65,7 +65,7 @@ function uploadResult(err, response, body) {
 function wrapAsJSON(prev, data) {
     return data ? JSON.stringify({
         code: data.toString()
-    }) : prev;
+    }) : prev
 }
 
 // a reduce call back
