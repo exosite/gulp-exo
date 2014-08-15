@@ -46,17 +46,30 @@ function uploadResult(err, response, body) {
 
     function cb(body) {
         if (response.statusCode == 200 && body.code) {
-            console.log('upload success')
+            try {
+                body = JSON.parse(body);
+                if( body.code ) {
+                    console.log('upload success')
+                } else {
+                    throw 'FAILED! --> Malformed JSON <--'
+                }
+            } catch(e) {
+                console.log(e+'\nresponse: '+body)
+            }
+        } else if(response.statusCode == 301){
+            var link = body.match(/<a href="(.*)">/)
+
+            console.log('FAILED! -->','The widget has moved to',link[1],'<--')
         } else {
             console.log('ERROR (%s)', response.statusCode)
         }
     }
 
     if (response.headers['content-encoding'] != 'gzip') {
-        cb(JSON.parse(body.toString()))
+        cb(body.toString())
     } else {
         zlib.gunzip(body, function(err, result) {
-            !err && cb(JSON.parse(result.toString()))
+            !err && cb(result.toString())
         })
     }
 }
@@ -75,9 +88,9 @@ function joinResponse(prev, data) {
 
 
 /**
- *	class
- *
- *
- *
- */
+*   class
+*
+*
+*
+*/
 exports.upload = upload;
