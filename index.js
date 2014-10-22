@@ -25,7 +25,7 @@ function upload(opt) {
         headers: {
             'Content-Type': 'application/json',
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.114 Safari/537.36',
-            // 'Accept-Encoding': 'gzip'
+            'Accept-Encoding': 'gzip'
         },
         auth: opt.auth,
         strictSSL: false,
@@ -45,7 +45,7 @@ function uploadResult(err, response, body) {
     if (err) return console.error(err);
 
     function cb(body) {
-        if (response.statusCode == 200 && body.code) {
+        if (response.statusCode == 200) {
             try {
                 body = JSON.parse(body);
                 if( body.code ) {
@@ -64,13 +64,12 @@ function uploadResult(err, response, body) {
             console.log('ERROR (%s)', response.statusCode)
         }
     }
-
-    if (response.headers['content-encoding'] != 'gzip') {
-        cb(body.toString())
-    } else {
+    if (response.headers['content-encoding'] == 'gzip') {
         zlib.gunzip(body, function(err, result) {
             !err && cb(result.toString())
         })
+    } else {
+        cb(body.toString())
     }
 }
 
