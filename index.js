@@ -28,6 +28,8 @@ var _opt = {
     jar: jar
 }
 
+// var COOKIE_PATH = os.tmpdir() + path.sep + '.wiget-uploader-cookie';
+
 function upload(opt) {
     debug(opt)
     if( ! opt.viewId ) {
@@ -330,6 +332,19 @@ function wrapAsJSON(prev, data) {
 function joinResponse(prev, data) {
     return prev + data.toString()
 }
+
+// not working code
+// function loadCookie(cookiePath) {
+//     try {
+//         return JSON.parse(fs.readFileSync(COOKIE_PATH, 'utf8'))
+//     } catch(e) {
+//         return null
+//     }
+// }
+
+// function saveCookie(jar) {
+//     return Q.nfcall(fs.writeFile, COOKIE_PATH, JSON.stringify(cookie), 'utf8');
+// }
 
 
 /**
