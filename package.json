@@ -1,26 +1,34 @@
 {
-    "name": "gulp-exo",
-    "version": "1.0.5",
-    "description": "Exosite Gulp Plugin",
-    "main": "index.js",
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git@i.exosite.com:willytseng/gulp-exo.git"
-    },
-    "keywords": [
-        "Exosite",
-        "Gulp"
-    ],
-    "author": {
-        "name": "Willy Tseng"
-    },
-    "license": "Exosite",
-    "readme": "ERROR: No README data found!",
-    "_id": "gulp-exo@1.0.4",
-    "_shasum": "0b56d38b48b7b388a6192285cfbbf0db3bbf693a",
-    "_resolved": "git+ssh://git@i.exosite.com:willytseng/gulp-exo.git#456036e33961cf0a512cef872275c579d5da31e4",
-    "_from": "git+ssh://git@i.exosite.com:willytseng/gulp-exo.git"
+  "name": "gulp-exo",
+  "version": "1.0.5",
+  "description": "Exosite Gulp Plugin",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@i.exosite.com:willytseng/gulp-exo.git"
+  },
+  "keywords": [
+    "Exosite",
+    "Gulp"
+  ],
+  "author": {
+    "name": "Willy Tseng"
+  },
+  "license": "Exosite",
+  "readme": "ERROR: No README data found!",
+  "_id": "gulp-exo@1.0.4",
+  "_shasum": "0b56d38b48b7b388a6192285cfbbf0db3bbf693a",
+  "_resolved": "git+ssh://git@i.exosite.com:willytseng/gulp-exo.git#456036e33961cf0a512cef872275c579d5da31e4",
+  "_from": "git+ssh://git@i.exosite.com:willytseng/gulp-exo.git",
+  "dependencies": {
+    "debug": "^2.1.0",
+    "event-stream": "^3.1.7",
+    "extend": "^2.0.0",
+    "gulp-util": "^3.0.1",
+    "q": "^1.0.1",
+    "stream-reduce": "^1.0.3"
+  }
 }

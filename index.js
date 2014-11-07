@@ -7,42 +7,294 @@ var fs = require('fs'),
     zlib = require('zlib')
 
 // 3rd party
-var extend = require('extend'),
+var Q = require('q'),
+    extend = require('extend'),
     request = require('request'),
     es = require('event-stream'),
     reduce = require('stream-reduce'),
     gutil = require('gulp-util'),
     // progress = require('request-progress'),
-    debug = require('debug')('widget-uploader')
+    debug = require('debug')('gulp-exo')
+
+var jar = request.jar()
+
+var _opt = {
+    encoding: null,
+    headers: {
+        'User-Agent': 'WidgetUploader/0.5'
+    },
+    strictSSL: false,
+    followRedirect: true,
+    jar: jar
+}
 
 function upload(opt) {
+    debug(opt)
+    console.log(opt)
+    if( ! opt.viewId ) {
+        return uploadDomainWidget(opt)
+    } else {
+        return uploadCustomWidget(opt)
+    }
+}
 
+function uploadDomainWidget(opt) {
     var url = 'https://' + opt.host + '/api/portals/v1/widget-scripts/' + opt.widgetId
     console.log('uploading to: ', url)
 
-    var _opt = {
-        encoding: null,
+    var uploadOpt = extend(true, {},_opt,{
+        auth: opt.auth,
         headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.114 Safari/537.36',
-            'Accept-Encoding': 'gzip'
-        },
-        auth: opt.auth,
-        strictSSL: false,
-        followRedirect: true
-    }
+        }
+    })
 
     var input = reduce(joinResponse, '')
 
     var output = input.pipe(reduce(wrapAsJSON, '{"code":null}'))
-        .pipe(request.put(url, _opt, uploadResult)).on('error', console.error)
+        .pipe(request.put(url, uploadOpt, uploadResult)).on('error', console.error)
         .pipe(reduce(joinResponse, '')) //.on('data', console.log)
 
     return es.duplex(input, output)
 }
 
+function uploadCustomWidget(opt) {
+
+    var deferred = Q.defer()
+
+    var preprocess = authenticate(opt)
+                        .then(getViewUpdateToken.bind(this,opt))
+
+    var streamOutDeferred = Q.defer()
+
+    var streamOut = es.through(function() {
+        var self = this
+        streamOutDeferred.promise.then(function() {
+            self.emit('data','success')
+        },function(err) {
+            self.emit('data','failed')
+        })
+    })
+
+    var uploadWidget = es.through(function(script) {
+        var self = this
+
+        Q.when(preprocess)
+            .then(function(token) {
+
+                var deferred = Q.defer()
+
+                var form = {
+                    formname: 'editwidget',
+                    postid: token,
+                    'form[title]': opt.title,
+                    'form[viewid]': opt.viewId,
+                    'form[widgetkey]': opt.widgetKey,
+                    'form[widgettypeid]': '0000000032',
+                    'form[widgettypename]': 'Custom Widget',
+                    'form[order]': 0,
+                    // 'form[rids]': opt.rids || [],
+                    'form[script]': script.toString(),
+                    'form[limit][unit]': 'minute',
+                    'form[limit][type]': 'count',
+                    'form[limit][value]': 1
+                }
+
+                console.log(form)
+
+                postCustomWidgetUpdateForm(opt, form, function(err, url) {
+                    console.log(url)
+                    if(err) {
+                        deferred.reject(err)
+                    } else {
+                        deferred.resolve(url)
+                    }
+                })
+
+                return deferred.promise
+            })
+            .then(function(url) {
+                streamOutDeferred.resolve(url)
+            })
+            .fail(function(err) {
+                streamOutDeferred.reject(url)
+            })
+    })
+    
+    return es.duplex(uploadWidget,streamOut)
+}
+
+function postCustomWidgetUpdateForm(opt, form, cb) {
+    var signinRequest = 'https://' + opt.host + '/views/process'
+
+    var requestOpt = extend(true, {}, _opt, {
+        followRedirect: true,
+        followAllRedirects: true,
+        headers: {
+            Origin: 'https://' + opt.host,
+            Refer: 'https://' + opt.host + '/views/'+opt.portalId+'/'+opt.viewId+'/load?widgetkey='+opt.widgetKey+'&mode=1'
+        }
+    })
+
+    // requestOpt.auth = null
+
+    console.log('posting custom widget')
+
+    return request.post(signinRequest, requestOpt, function(err, response, body) {
+        body = body.toString()
+        console.log(body)
+        // debug(response.statusCode)
+        console.log(response.statusCode)
+        debug('posting custom widget result: ' + response.request.href)
+        // console.log(err)
+
+        if (err || !response.request.href.match('/views')) {
+            debug('widget update failed')
+            console.log('widget update failed')
+            cb && cb('widget update failed')
+        } else {
+            debug('widget update success')
+            console.log('widget update success')
+            cb && cb(err,response.request.href)
+        }
+
+    }).form(form)
+}
+
+function getViewUpdateToken(opt) {
+    console.log('getting update token')
+    var deferred = Q.defer()
+
+    var widgetPage = 'https://' + opt.host + '/views/'+opt.portalId+'/'+opt.viewId+'/load?widgetkey='+opt.widgetKey+'&mode=1'
+
+    var requestOpt = extend(true, {}, _opt)
+
+    request.get(widgetPage, requestOpt, function(err, response, body) {
+        body = body.toString()
+
+        if (err || response.statusCode != 200) {
+            deferred.reject(err || response.statusCode)
+            return
+        }
+
+        if ( response.request.href.match(widgetPage)) {
+            deferred.reject('redirected to '+response.request.href)
+        }
+
+        var matches = body.match(/<input type="hidden" name="postid" value="([a-z0-9]{32})" \/>/);
+        
+        if (!matches) {
+            debug('widget post id not found')
+            deferred.reject('fatal error: widget postid not found')
+            return
+        }
+
+        deferred.resolve(matches[1])
+
+    });
+
+    return deferred.promise
+}
+
+function authenticate(opt) {
+    var deferred = Q.defer()
+
+    var signinPage = 'https://' + opt.host + '/login'
+
+    // setup request option
+    var requestOpt = extend(true, {}, _opt, {
+        followRedirect: true,
+        followAllRedirects: true
+    })
+
+    request.get(signinPage, requestOpt, function(err, response, body) {
+        body = body.toString()
+
+        if (err) {
+            deferred.reject(err)
+            return
+        }
+
+        // you are at home
+        if (response.request.href.match('/views')) {
+            deferred.resolve(true)
+            return
+        }
+        console.log(response.request.href.match('/login'))
+        // need authentication
+
+        if (response.request.href.match('/login')) {
+            var matches = body.match(/<input type="hidden" name="formname" value="accountlogin" \/><input type="hidden" name="postid" value="([a-z0-9]{32})" \/>/);
+            
+            if (!matches) {
+                debug('post id not found')
+                deferred.reject('fatal error: signin page unavailable')
+                return
+            }
+
+            var form = {
+                formname: 'accountlogin',
+                postid: matches[1],
+                'form[user]': opt.auth.username,
+                'form[pass]': opt.auth.password
+            }
+
+            // recurrent on promting Password by count
+            postSigninForm(opt, form, function(err, url) {
+                if (err) {
+                    deferred.reject(err)
+                    return
+                }
+                console.log(url)
+                deferred.resolve(url)
+            })
+        }
+
+    });
+
+    return deferred.promise
+}
+
+function postSigninForm(opt, form, cb) {
+
+    var signinRequest = 'https://' + opt.host + '/process'
+
+    var requestOpt = extend(true, {}, _opt, {
+        followRedirect: true,
+        followAllRedirects: true,
+        headers: {
+            Origin: 'https://' + opt.host,
+            Refer: 'https://' + opt.host + '/login'
+        }
+    })
+
+    // requestOpt.auth = null
+
+    console.log('posting signin form')
+
+    return request.post(signinRequest, requestOpt, function(err, response, body) {
+        debug(response.statusCode)
+        console.log(response.statusCode)
+        debug('formpost result: ' + response.request.href)
+        console.log(err)
+
+        if (err || !response.request.href.match('/views')) {
+            debug('failed to sign in')
+            console.log('failed to sign in')
+            cb && cb('failed to sign in')
+        } else {
+            debug('signed in')
+            console.log('signed in')
+            cb && cb(err,response.request.href)
+        }
+
+        
+    }).form(form)
+
+}
+
 function uploadResult(err, response, body) {
-    if (err) return console.error(err);
+    if (err) return console.error(err)
 
     function cb(body) {
         if (response.statusCode == 200) {
