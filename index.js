@@ -30,7 +30,6 @@ var _opt = {
 
 function upload(opt) {
     debug(opt)
-    console.log(opt)
     if( ! opt.viewId ) {
         return uploadDomainWidget(opt)
     } else {
@@ -68,16 +67,24 @@ function uploadCustomWidget(opt) {
     var streamOutDeferred = Q.defer()
 
     var streamOut = es.through(function() {
-        var self = this
-        streamOutDeferred.promise.then(function() {
-            self.emit('data','success')
-        },function(err) {
-            self.emit('data','failed')
-        })
+
+        var success = function() {
+            this.emit('data','success')
+        }.bind(this)
+
+        var failed = function() {
+            this.emit('data','failed')
+        }.bind(this)
+
+        streamOutDeferred.promise
+            .then(success, faile)
+    }, function() {
+        this.emit('end')
     })
 
     var uploadWidget = es.through(function(script) {
-        var self = this
+        // script = script.toString()
+        var thisStream = this
 
         Q.when(preprocess)
             .then(function(token) {
@@ -93,17 +100,14 @@ function uploadCustomWidget(opt) {
                     'form[widgettypeid]': '0000000032',
                     'form[widgettypename]': 'Custom Widget',
                     'form[order]': 0,
-                    // 'form[rids]': opt.rids || [],
-                    'form[script]': script.toString(),
+                    'form[rids]': opt.rids || [],
+                    'form[script]': script,
                     'form[limit][unit]': 'minute',
                     'form[limit][type]': 'count',
                     'form[limit][value]': 1
                 }
 
-                console.log(form)
-
                 postCustomWidgetUpdateForm(opt, form, function(err, url) {
-                    console.log(url)
                     if(err) {
                         deferred.reject(err)
                     } else {
@@ -114,13 +118,17 @@ function uploadCustomWidget(opt) {
                 return deferred.promise
             })
             .then(function(url) {
-                streamOutDeferred.resolve(url)
+                // streamOutDeferred.resolve(url)
+                streamOut.emit('data',url)
+                streamOut.emit('end')
             })
             .fail(function(err) {
-                streamOutDeferred.reject(url)
+                // streamOutDeferred.reject(url)
+                streamOut.emit('data',err)
+                streamOut.emit('end')
             })
     })
-    
+
     return es.duplex(uploadWidget,streamOut)
 }
 
@@ -136,17 +144,11 @@ function postCustomWidgetUpdateForm(opt, form, cb) {
         }
     })
 
-    // requestOpt.auth = null
-
-    console.log('posting custom widget')
+    debug('posting custom widget')
 
     return request.post(signinRequest, requestOpt, function(err, response, body) {
         body = body.toString()
-        console.log(body)
-        // debug(response.statusCode)
-        console.log(response.statusCode)
         debug('posting custom widget result: ' + response.request.href)
-        // console.log(err)
 
         if (err || !response.request.href.match('/views')) {
             debug('widget update failed')
@@ -182,7 +184,7 @@ function getViewUpdateToken(opt) {
         }
 
         var matches = body.match(/<input type="hidden" name="postid" value="([a-z0-9]{32})" \/>/);
-        
+
         if (!matches) {
             debug('widget post id not found')
             deferred.reject('fatal error: widget postid not found')
@@ -211,25 +213,21 @@ function authenticate(opt) {
         body = body.toString()
 
         if (err) {
-            deferred.reject(err)
-            return
+            return deferred.reject(err)
         }
 
         // you are at home
         if (response.request.href.match('/views')) {
-            deferred.resolve(true)
-            return
+            return deferred.resolve(true)
         }
-        console.log(response.request.href.match('/login'))
-        // need authentication
 
+        // need authentication
         if (response.request.href.match('/login')) {
             var matches = body.match(/<input type="hidden" name="formname" value="accountlogin" \/><input type="hidden" name="postid" value="([a-z0-9]{32})" \/>/);
-            
+
             if (!matches) {
                 debug('post id not found')
-                deferred.reject('fatal error: signin page unavailable')
-                return
+                return deferred.reject('fatal error: signin page unavailable')
             }
 
             var form = {
@@ -245,7 +243,6 @@ function authenticate(opt) {
                     deferred.reject(err)
                     return
                 }
-                console.log(url)
                 deferred.resolve(url)
             })
         }
@@ -274,9 +271,7 @@ function postSigninForm(opt, form, cb) {
 
     return request.post(signinRequest, requestOpt, function(err, response, body) {
         debug(response.statusCode)
-        console.log(response.statusCode)
         debug('formpost result: ' + response.request.href)
-        console.log(err)
 
         if (err || !response.request.href.match('/views')) {
             debug('failed to sign in')
@@ -288,7 +283,6 @@ function postSigninForm(opt, form, cb) {
             cb && cb(err,response.request.href)
         }
 
-        
     }).form(form)
 
 }
