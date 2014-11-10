@@ -1,6 +1,6 @@
 {
   "name": "gulp-exo",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Exosite Gulp Plugin",
   "main": "index.js",
   "scripts": {
